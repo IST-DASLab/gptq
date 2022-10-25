@@ -5,7 +5,7 @@ This repository contains the code for the paper *GPTQ: Accurate Post-training Co
 * An efficient implementation of the GPTQ algorithm:`gptq.py`
 * Compressing all models from the OPT and BLOOM families to 2/3/4 bits, including grouping: `opt.py`, `bloom.py`, `zeroShot/`
 * Evaluating the perplexity of quantized models on several language generation tasks: `opt.py`, `bloom.py`
-* Evaluating the performance of quantized models on several ZeroShot task: `zeroShot/`
+* Evaluating the performance of quantized models on several ZeroShot tasks: `zeroShot/`
 * A 3-bit quantized matrix full-precision vector product CUDA kernel: `quant_cuda_kernel.cu`, `quant_cuda.cpp`, `setup_cuda.py`
 * Benchmarking code for individual matrix-vector products and for language generation with quantized models: `test_kernel.py`, `opt.py`
 
@@ -50,7 +50,7 @@ To run other BLOOM models replace `bloom-560m` with one of: `bloom-1.1b`, `bloom
 
 ## ZeroShot
 
-See `zeroShot` folder.
+See `zeroShot/` folder.
 
 ## 3-bit CUDA Kernels 
 
