@@ -7,8 +7,8 @@ from . import arc
 # from . import openbookqa
 # from . import winogrande
 from . import superglue
-# from .local_datasets import lambada as lambada_dataset
-# from .lambada import LAMBADA
+from .local_datasets import lambada as lambada_dataset
+from .lambada import LAMBADA
 from . import glue
 
 # TODO: Add the rest of the results!
@@ -18,7 +18,7 @@ from . import glue
 
 
 TASK_REGISTRY = {
-    # "lambada": LAMBADA,
+    "lambada": LAMBADA,
     "piqa": piqa.PiQA,
     "arc_easy": arc.ARCEasy,
     "arc_challenge": arc.ARCChallenge,
