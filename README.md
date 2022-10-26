@@ -46,7 +46,7 @@ CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 --near
 CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 [--groupsize 1024]
 ````
 
-To run other BLOOM models replace `bloom-560m` with one of: `bloom-1.1b`, `bloom-1.7b`, `bloom-3b`, `bloom-7.1b`, `bloom`.
+To run other BLOOM models replace `bloom-560m` with one of: `bloom-1b1`, `bloom-1b7`, `bloom-3b`, `bloom-7b1`, `bloom`.
 
 ## ZeroShot
 
