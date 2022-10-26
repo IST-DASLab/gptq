@@ -3,13 +3,11 @@ from typing import List, Union
 from .tasks_utils import Task
 from . import piqa
 from . import arc
-# from . import hellaswag
-# from . import openbookqa
-# from . import winogrande
 from . import superglue
 from .local_datasets import lambada as lambada_dataset
 from .lambada import LAMBADA
 from . import glue
+from . import storycloze
 
 # TODO: Add the rest of the results!
 ########################################
@@ -22,9 +20,6 @@ TASK_REGISTRY = {
     "piqa": piqa.PiQA,
     "arc_easy": arc.ARCEasy,
     "arc_challenge": arc.ARCChallenge,
-    # "hellaswag": hellaswag.HellaSwag,
-    # "openbookqa": openbookqa.OpenBookQA,
-    # "winogrande": winogrande.Winogrande,
     "boolq": superglue.BoolQ,
     "cb": superglue.CommitmentBank,
     "copa": superglue.Copa,
@@ -33,6 +28,7 @@ TASK_REGISTRY = {
     "rte": glue.RTE,
     "record": superglue.ReCoRD,
     "wsc": superglue.SGWinogradSchemaChallenge,
+    "storycloze": storycloze.StoryCloze2018
 }
 
 ALL_TASKS = sorted(list(TASK_REGISTRY))

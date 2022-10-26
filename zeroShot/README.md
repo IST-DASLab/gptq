@@ -11,6 +11,7 @@ We implement the following tasks:
 - [x] WSC
 - [x] RTE
 - [x] CB
+- [x] StoryCloze-2018
 
 
 To add new tasks, please follow [this](https://github.com/EleutherAI/lm-evaluation-harness#code-structure) 
