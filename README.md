@@ -1,36 +1,26 @@
-This folder contains code to reproduce our "Language Generation" experiments, namely:
+# GPTQ
 
-* Compressing all models from the OPT and BLOOM model families to 3 or 4 bits.
-* Evaluating perplexity of the quantized models.
-* Our 3-bit kernel together with a small benchmarking script for individual matrix-vector products.
+This repository contains the code for the paper *GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers*. More precisely, it includes the following features:
 
-Code for the ZeroShot experiments and for running inference on compressed models will be released at a later date.
-
-## Files
-
-* `bloom.py`: script for running language generation experiments on BLOOM models
-* `datautils.py`: utilities for handling datasets
-* `gptq.py`: efficient implementation of the full GPTQ algorithm
-* `modelutils.py`: some helper functions
-* `opt.py`: script for running language generation experiments on OPT models
-* `quant.py`: quantization utilities
-* `quant_cuda.cpp`: PyTorch CUDA extension code
-* `quant_cuda_kernel.cu`: CUDA kernel implemention
-* `setup_cuda.py`: install 3-bit CUDA kernels
-* `test_kernel.py`: test and benchmark 3-bit CUDA kernels
+* An efficient implementation of the GPTQ algorithm:`gptq.py`
+* Compressing all models from the OPT and BLOOM families to 2/3/4 bits, including grouping: `opt.py`, `bloom.py`, `zeroShot/`
+* Evaluating the perplexity of quantized models on several language generation tasks: `opt.py`, `bloom.py`
+* Evaluating the performance of quantized models on several ZeroShot tasks: `zeroShot/`
+* A 3-bit quantized matrix full-precision vector product CUDA kernel: `quant_cuda_kernel.cu`, `quant_cuda.cpp`, `setup_cuda.py`
+* Benchmarking code for individual matrix-vector products and for language generation with quantized models: `test_kernel.py`, `opt.py`
 
 ## Dependencies
 
 * `torch`: tested on v1.10.1+cu111
 * `transformers`: tested on v4.21.2
 * `datasets`: tested on v1.17.0
-* (to run 3-bit kernels: setup for compiling PyTorch CUDA extensions, see also https://pytorch.org/tutorials/advanced/cpp_extension.html)
+* (to run 3-bit kernels: setup for compiling PyTorch CUDA extensions, see also https://pytorch.org/tutorials/advanced/cpp_extension.html, tested on CUDA 11.4)
 
 All experiments were run on a single 80GB NVIDIA A100. However, most experiments will work on a GPU with a lot less memory as well.
 
-# Language Generation
+## Language Generation
 
-## OPT
+### OPT
 
 ```
 # Compute full precision (FP16) results
@@ -38,14 +28,14 @@ CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4
 # Run RTN baseline and compute results
 CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 --nearest
 # Run GPTQ and compute results
-CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4
+CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 [--groupsize 1024]
 ````
 
 To run other OPT models replace `opt-125m` with one of: `opt-350m`, `opt-1.3b`, `opt-2.7b`, `opt-6.7b`, `opt-13b`, `opt-66b`.
 For 175B you must request access from Meta and then convert it to a local HuggingFace checkpoint using their scripts in `metaseq`.
 Once you have such a checkpoint, simply pass its path instead of `facebook/opt-125m`. 
 
-## BLOOM
+### BLOOM
 
 ```
 # Compute full precision (FP16) results
@@ -53,16 +43,46 @@ CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4
 # Run RTN baseline and compute results
 CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 --nearest
 # Run GPTQ and compute results
-CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4
+CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 [--groupsize 1024]
 ````
 
 To run other BLOOM models replace `bloom-560m` with one of: `bloom-1.1b`, `bloom-1.7b`, `bloom-3b`, `bloom-7.1b`, `bloom`.
 
-# 3-bit CUDA Kernels 
+## ZeroShot
+
+See `zeroShot/` folder.
+
+## 3-bit CUDA Kernels 
 
 ```
 # Install kernels
 python setup_cuda.py install
+
 # Benchmark performance for FC2 layer of OPT-175B
 CUDA_VISIBLE_DEVICES=0 python test_kernel.py
+
+# Benchmark language generation with 3-bit OPT-175B:
+# OPT175B denotes the name of the folder with the HuggingFace OPT-175b checkpoint (see above)
+
+# Save compressed model
+CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --wbits 3 --save opt66-3bit.pt
+# Benchmark generating a 128 token sequence with the saved model
+CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --load opt66-3bit.pt --benchmark 128
+# Benchmark FP16 baseline, note that the model will be split across all listed GPUs
+CUDA_VISIBLE_DEVICES=0,1,2,3,4 python opt.py OPT175B c4 --benchmark 128
+```
+
+Please note that our 3-bit kernels are currently only optimized for OPT-175B running on 1xA100 or 2xA6000 and may thus yield suboptimal performance on smaller models or on other GPUs.
+
+## Cite
+
+If you found this work useful, please consider citing:
+
+```
+@article{frantar-gptq,
+  title={{GPTQ}: Accurate Post-training Compression for Generative Pretrained Transformers}, 
+  author={Elias Frantar and Saleh Ashkboos and Torsten Hoefler and Dan Alistarh},
+  year={2022},
+  journal={arXiv preprint arXiv:XXXX.XXXX}
+}
 ```
