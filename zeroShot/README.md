@@ -3,6 +3,7 @@ This folder contains code to reproduce the FewShot tasks. We follow the structur
 our tasks and the evaluation framework.
 
 We implement the following tasks:
+- [x] LAMBADA
 - [x] PIQA
 - [x] ARC-easy
 - [x] ARC-challenge
@@ -61,5 +62,5 @@ CUDA_VISIBLE_DEVICES=0 python main.py bigscience/bloom-560m c4 --wbits 4 --neare
 CUDA_VISIBLE_DEVICES=0 python main.py bigscience/bloom-560m c4 --wbits 4 --task piqa
 ````
 
-To run other BLOOM models replace `bloom-560m` with one of: `bloom-1.1b`, `bloom-1.7b`, `bloom-3b`, `bloom-7.1b`, `bloom`.
+To run other BLOOM models replace `bloom-560m` with one of: `bloom-1b1`, `bloom-1b7`, `bloom-3b`, `bloom-7b1`, `bloom`.
 
