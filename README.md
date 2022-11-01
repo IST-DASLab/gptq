@@ -1,9 +1,10 @@
 # GPTQ
 
-This repository contains the code for the paper *GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers*. More precisely, it includes the following features:
+This repository contains the code for the paper *GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers*. 
+The current release includes the following features:
 
-* An efficient implementation of the GPTQ algorithm:`gptq.py`
-* Compressing all models from the OPT and BLOOM families to 2/3/4 bits, including grouping: `opt.py`, `bloom.py`, `zeroShot/`
+* An efficient implementation of the GPTQ algorithm: `gptq.py`
+* Compressing all models from the OPT and BLOOM families to 2/3/4 bits, including weight grouping: `opt.py`, `bloom.py`, `zeroShot/`
 * Evaluating the perplexity of quantized models on several language generation tasks: `opt.py`, `bloom.py`
 * Evaluating the performance of quantized models on several ZeroShot tasks: `zeroShot/`
 * A 3-bit quantized matrix full-precision vector product CUDA kernel: `quant_cuda_kernel.cu`, `quant_cuda.cpp`, `setup_cuda.py`
@@ -32,7 +33,7 @@ CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 [--groupsize
 ````
 
 To run other OPT models replace `opt-125m` with one of: `opt-350m`, `opt-1.3b`, `opt-2.7b`, `opt-6.7b`, `opt-13b`, `opt-66b`.
-For 175B you must request access from Meta and then convert it to a local HuggingFace checkpoint using their scripts in `metaseq`.
+For the 175B-parameter mode, you have to request access from Meta and then convert it to a local HuggingFace checkpoint using their scripts in `metaseq`.
 Once you have such a checkpoint, simply pass its path instead of `facebook/opt-125m`. 
 
 ### BLOOM
