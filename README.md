@@ -1,6 +1,6 @@
 # GPTQ
 
-This repository contains the code for the paper *GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers*. 
+This repository contains the code for the paper [GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers](https://arxiv.org/abs/2210.17323). 
 The current release includes the following features:
 
 * An efficient implementation of the GPTQ algorithm: `gptq.py`
@@ -84,6 +84,6 @@ If you found this work useful, please consider citing:
   title={{GPTQ}: Accurate Post-training Compression for Generative Pretrained Transformers}, 
   author={Elias Frantar and Saleh Ashkboos and Torsten Hoefler and Dan Alistarh},
   year={2022},
-  journal={arXiv preprint arXiv:XXXX.XXXX}
+  journal={arXiv preprint arXiv:2210.17323}
 }
 ```
