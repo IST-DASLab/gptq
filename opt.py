@@ -196,7 +196,7 @@ def opt_eval(model, testenc, dev):
                 W = subset[name].weight.data
                 quantizer.find_params(W, weight=True)
                 subset[name].weight.data = quantizer.quantize(
-                    W #, quantizer.scale, quantizer.zero, quantizer.maxq
+                    W  # , quantizer.scale, quantizer.zero, quantizer.maxq
                 ).to(next(iter(layer.parameters())).dtype)
 
         for j in range(nsamples):
@@ -414,7 +414,11 @@ if __name__ == "__main__":
         help="Percent of the average Hessian diagonal to use for dampening.",
     )
     parser.add_argument(
-        "--format", type=str, choices=["bfp", "int"], help="Quantization format"
+        "--format",
+        type=str,
+        choices=["bfp", "int"],
+        default="int",
+        help="Quantization format",
     )
     parser.add_argument(
         "--nearest", action="store_true", help="Whether to run the RTN baseline."
