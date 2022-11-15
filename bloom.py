@@ -8,6 +8,7 @@ import transformers
 from gptq import *
 from modelutils import *
 from quant import *
+from functools import partial
 
 
 def get_bloom(model):
@@ -181,7 +182,7 @@ def bloom_eval(model, testenc, dev):
     alibi = cache["alibi"]
 
     for i in range(len(layers)):
-        print(i)
+        # print(i)
         layer = layers[i].to(dev)
 
         if args.nearest:
@@ -222,7 +223,7 @@ def bloom_eval(model, testenc, dev):
         neg_log_likelihood = loss.float() * model.seqlen
         nlls.append(neg_log_likelihood)
     ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
-    print(ppl.item())
+    print(f"ppl = {ppl.item()}")
 
     model.config.use_cache = use_cache
 
@@ -260,7 +261,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--format",
         type=str,
-        choices=["bfp", "int"],
+        choices=["bfp", "sbfp", "int"],
         default="int",
         help="Quantization format",
     )
@@ -270,6 +271,13 @@ if __name__ == "__main__":
         default=16,
         choices=[2, 3, 4, 8, 16],
         help="#bits to use for quantization; use 16 for evaluating base model.",
+    )
+    parser.add_argument(
+        "--sebias",
+        type=int,
+        default=7,
+        choices=[7, 8, 9, 10, 11],
+        help="for SBFP, uFP scaler's exponent bias",
     )
     parser.add_argument(
         "--groupsize",
@@ -283,7 +291,9 @@ if __name__ == "__main__":
     if args.format == "int":
         Quantizer = INTQuantizer
     elif args.format == "bfp":
-        Quantizer = BFPQuantizer
+        Quantizer = partial(DMXQuantizer, fmt=args.format)
+    elif args.format == "sbfp":
+        Quantizer = partial(DMXQuantizer, fmt=args.format, sebias=args.sebias)
 
     model = get_bloom(args.model)
     model.eval()
@@ -301,7 +311,7 @@ if __name__ == "__main__":
         bloom_sequential(model, dataloader, DEV)
         print(time.time() - tick)
 
-    for dataset in ["wikitext2", "ptb", "c4"]:
+    for dataset in ["ptb"]: # ["wikitext2", "ptb", "c4"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )

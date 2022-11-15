@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from mltools import corsair
+from mltools import corsair, numerical
 
 
 def quantize(x, scale, zero, maxq):
@@ -125,19 +125,33 @@ class INTQuantizer(nn.Module):
         return torch.all(self.scale != 0)
 
 
-class BFPQuantizer(nn.Module):
-    def __init__(self, *args, **kwargs) -> None:
+class DMXQuantizer(nn.Module):
+    def __init__(self, fmt="bfp", sebias=7, *args, **kwargs) -> None:
         super().__init__()
+        self.fmt = fmt
+        self.sebias = sebias
 
     def configure(self, bits, *args, **kwargs):
-        if bits == 4:
+        if self.fmt == "bfp" and bits == 4:
             self.format = corsair.format.BFP12_128_LD
-        elif bits == 8:
+        elif self.fmt == "bfp" and bits == 8:
             self.format = corsair.format.BFP16_64_LD
-        else:
-            raise ValueError(
-                f"unsupported BFP precision {bits}, use 4 for BFP12-128 and 8 for BFP16-64"
+        elif self.fmt == "sbfp" and bits == 4:
+            self.format = numerical.ScaledBlockFloatingPoint(
+                block_format=numerical.Format.from_shorthand("XP[4,0](CSN)"),
+                scaler_format=numerical.FloatingPoint(
+                    mantissa=4,
+                    exponent=4,
+                    bias=self.sebias,
+                    flush_subnormal=True,
+                    rounding="nearest",
+                ),
+                block_size=16,
+                block_dim=-1,
             )
+        else:
+            raise ValueError(f"unsupported precision {bits} for d-Matrix numerical format {self.fmt}")
+        self.cast_to = corsair.CastTo(format=self.format)
 
     def find_params(self, *args, **kwargs):
         # all dummy values below, not used
@@ -147,12 +161,11 @@ class BFPQuantizer(nn.Module):
 
     def quantize(self, x):
         if self.ready:
-            if x.shape[-1] == 1: # NOTE: ugly fix due to GPTQ's unsqueeze() before quantize() call
-                x = x.squeeze(-1)
-                x = corsair.CastTo(format=self.format)(x.float())
-                x = x.unsqueeze(-1)
+            if x.shape[-1] == 1:
+                # NOTE: ugly fix due to GPTQ's unsqueeze() before quantize() call
+                return self.cast_to(x.squeeze(-1).float()).unsqueeze(-1)
             else:
-                x = corsair.CastTo(format=self.format)(x.float())
+                return self.cast_to(x.float())
         return x
 
     def enabled(self):
