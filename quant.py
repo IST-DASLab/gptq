@@ -4,7 +4,7 @@ import torch.nn as nn
 from mltools import corsair, numerical
 
 
-def quantize(x, scale, zero, maxq):
+def _quantize(x, scale, zero, maxq):
     q = torch.clamp(torch.round(x / scale) + zero, 0, maxq)
     return scale * (q - zero)
 
@@ -115,7 +115,7 @@ class INTQuantizer(nn.Module):
 
     def quantize(self, x):
         if self.ready():
-            return quantize(x, self.scale, self.zero, self.maxq)
+            return _quantize(x, self.scale, self.zero, self.maxq)
         return x
 
     def enabled(self):
