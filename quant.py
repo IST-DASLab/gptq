@@ -126,7 +126,7 @@ class INTQuantizer(nn.Module):
 
 
 class DMXQuantizer(nn.Module):
-    def __init__(self, fmt="bfp", sebias=7, *args, **kwargs) -> None:
+    def __init__(self, shape=1, fmt="bfp", sebias=7, *args, **kwargs) -> None:
         super().__init__()
         self.fmt = fmt
         self.sebias = sebias
