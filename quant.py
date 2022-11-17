@@ -144,6 +144,7 @@ class DMXQuantizer(nn.Module):
                     exponent=4,
                     bias=self.sebias,
                     flush_subnormal=True,
+                    unsigned=True,
                     rounding="nearest",
                 ),
                 block_size=16,
