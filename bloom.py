@@ -80,6 +80,8 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
 
     print("Ready.")
 
+    print("Quantizing...")
+
     for i in range(len(layers)):
         layer = layers[i].to(dev)
 
@@ -109,8 +111,9 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
             h.remove()
 
         for name in subset:
-            print(i, name)
-            print("Quantizing ...")
+            if gptq.DEBUG:
+                print(i, name)
+                print("Quantizing ...")
             gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)
         for j in range(args.nsamples):
             outs[j] = layer(
@@ -124,6 +127,8 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
+
+    print("Done.")
 
 
 @torch.no_grad()
@@ -311,7 +316,7 @@ if __name__ == "__main__":
         bloom_sequential(model, dataloader, DEV)
         print(time.time() - tick)
 
-    for dataset in ["ptb"]: # ["wikitext2", "ptb", "c4"]:
+    for dataset in ["ptb"]:  # ["wikitext2", "ptb", "c4"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )

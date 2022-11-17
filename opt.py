@@ -80,6 +80,8 @@ def opt_sequential(model, dataloader, dev):
 
     print("Ready.")
 
+    print("Quantizing...")
+
     quantizers = {}
     for i in range(len(layers)):
         layer = layers[i].to(dev)
@@ -108,8 +110,9 @@ def opt_sequential(model, dataloader, dev):
             h.remove()
 
         for name in subset:
-            print(i, name)
-            print("Quantizing ...")
+            if gptq.DEBUG:
+                print(i, name)
+                print("Quantizing ...")
             gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)
             quantizers["model.decoder.layers.%d.%s" % (i, name)] = gptq[name].quantizer
             gptq[name].free()
@@ -124,6 +127,8 @@ def opt_sequential(model, dataloader, dev):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
+
+    print("Done.")
 
     return quantizers
 
@@ -503,7 +508,7 @@ if __name__ == "__main__":
     if args.load:
         exit()
 
-    for dataset in ["ptb"]: # ["wikitext2", "ptb", "c4"]:
+    for dataset in ["ptb"]:  # ["wikitext2", "ptb", "c4"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )
