@@ -111,7 +111,7 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
             h.remove()
 
         for name in subset:
-            if gptq.DEBUG:
+            if DEBUG:
                 print(i, name)
                 print("Quantizing ...")
             gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)

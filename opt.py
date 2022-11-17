@@ -110,7 +110,7 @@ def opt_sequential(model, dataloader, dev):
             h.remove()
 
         for name in subset:
-            if gptq.DEBUG:
+            if DEBUG:
                 print(i, name)
                 print("Quantizing ...")
             gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)
