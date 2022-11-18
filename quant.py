@@ -143,7 +143,7 @@ class DMXQuantizer(nn.Module):
                     mantissa=4,
                     exponent=4,
                     bias=self.sebias,
-                    flush_subnormal=True,
+                    flush_subnormal=False,
                     unsigned=True,
                     rounding="nearest",
                 ),
