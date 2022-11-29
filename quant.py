@@ -143,7 +143,7 @@ class DMXQuantizer(nn.Module):
                     mantissa=4,
                     exponent=4,
                     bias=self.sebias,
-                    flush_subnormal=False,
+                    flush_subnormal=True,
                     unsigned=True,
                     rounding="nearest",
                 ),
@@ -151,7 +151,9 @@ class DMXQuantizer(nn.Module):
                 block_dim=-1,
             )
         else:
-            raise ValueError(f"unsupported precision {bits} for d-Matrix numerical format {self.fmt}")
+            raise ValueError(
+                f"unsupported precision {bits} for d-Matrix numerical format {self.fmt}"
+            )
         self.cast_to = corsair.CastTo(format=self.format)
 
     def find_params(self, *args, **kwargs):
