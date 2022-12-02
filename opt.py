@@ -3,9 +3,9 @@ import time
 import torch
 import torch.nn as nn
 
-from gptq import *
-from modelutils import *
-from quant import *
+from .gptq import *
+from .modelutils import *
+from .quant import *
 from functools import partial
 
 
@@ -26,7 +26,15 @@ def get_opt(model):
 
 
 @torch.no_grad()
-def opt_sequential(model, dataloader, dev):
+def opt_sequential(
+    model,
+    dataloader,
+    dev,
+    quantizer_cls=INTQuantizer,
+    wbits=4,
+    percdamp=0.01,
+    groupsize=-1,
+):
     print("Starting ...")
 
     use_cache = model.config.use_cache
@@ -41,9 +49,11 @@ def opt_sequential(model, dataloader, dev):
         model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
     layers[0] = layers[0].to(dev)
 
-    dtype = next(iter(model.parameters())).dtype
+    dtype = next(iter(model.parameters())).dtype  # why?
     inps = torch.zeros(
-        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+        (len(dataloader), model.seqlen, model.config.hidden_size),
+        dtype=dtype,
+        device=dev,
     )
     cache = {"i": 0, "attention_mask": None}
 
@@ -53,17 +63,19 @@ def opt_sequential(model, dataloader, dev):
             self.module = module
 
         def forward(self, inp, **kwargs):
-            inps[cache["i"]] = inp
+            inps[
+                cache["i"]
+            ] = inp  # cache["i"] is just an integer index to dataloader, this is a recording mechanism: why not use input hook?
             cache["i"] += 1
             cache["attention_mask"] = kwargs["attention_mask"]
-            raise ValueError
+            raise ValueError  # an ugly way of making the forward stop after layer[0]
 
     layers[0] = Catcher(layers[0])
     for batch in dataloader:
         try:
             model(batch[0].to(dev))
         except ValueError:
-            pass
+            pass  # an ugly way of making the forward stop after layer[0]
     layers[0] = layers[0].module
 
     layers[0] = layers[0].cpu()
@@ -78,23 +90,31 @@ def opt_sequential(model, dataloader, dev):
     outs = torch.zeros_like(inps)
     attention_mask = cache["attention_mask"]
 
+    # by now, one should have inps from all data examples for layer[0]
+
     print("Ready.")
 
     print("Quantizing...")
 
     quantizers = {}
-    for i in range(len(layers)):
-        layer = layers[i].to(dev)
+    for i in range(len(layers)):  # going through decoder layers
+        layer = layers[i].to(dev)  # move layers to GPU one at a time
 
         subset = find_layers(layer)
-        gptq = {}
+        # subset is a dictionary holding 6 Linear modules in the layer
+        gptq = {}  # dictionary to hold gptq objects
         for name in subset:
-            gptq[name] = GPTQ(subset[name])
-            gptq[name].quantizer = Quantizer()
+            gptq[name] = GPTQ(subset[name])  # GPTQ object with a layer
+            gptq[
+                name
+            ].quantizer = (
+                quantizer_cls()
+            )  # attache a quantizer; why not pass in with GPTQ constructor?
             gptq[name].quantizer.configure(
-                args.wbits, perchannel=True, sym=False, mse=False
-            )
+                wbits, perchannel=True, sym=False, mse=False
+            )  # why not specify as args to Quantizer constructor?
 
+        ### 
         def add_batch(name):
             def tmp(_, inp, out):
                 gptq[name].add_batch(inp[0].data, out.data)
@@ -104,19 +124,20 @@ def opt_sequential(model, dataloader, dev):
         handles = []
         for name in subset:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
-        for j in range(args.nsamples):
+        for j in range(len(dataloader)):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
         for h in handles:
             h.remove()
+        ### 
 
         for name in subset:
             if DEBUG:
                 print(i, name)
                 print("Quantizing ...")
-            gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)
+            gptq[name].fasterquant(percdamp=percdamp, groupsize=groupsize)  # GPTQ algo
             quantizers["model.decoder.layers.%d.%s" % (i, name)] = gptq[name].quantizer
             gptq[name].free()
-        for j in range(args.nsamples):
+        for j in range(len(dataloader)):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
 
         layers[i] = layer.cpu()
@@ -124,7 +145,7 @@ def opt_sequential(model, dataloader, dev):
         del gptq
         torch.cuda.empty_cache()
 
-        inps, outs = outs, inps
+        inps, outs = outs, inps  # what is going on here?
 
     model.config.use_cache = use_cache
 

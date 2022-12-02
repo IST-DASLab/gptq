@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 import transformers
 
-from quant import *
+from mltools import corsair
+
+from .quant import *
 
 
 DEBUG = False
@@ -29,6 +31,14 @@ class GPTQ:
         self.nsamples = 0
 
     def add_batch(self, inp, out):
+        if isinstance(
+            self.layer,
+            (
+                corsair.nn.Linear,
+                corsair.nn.Conv2d,
+            ),
+        ):
+            inp = self.layer.input_cast(inp)
         if DEBUG:
             self.inp1 = inp
             self.out1 = out
@@ -59,6 +69,7 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(self, blocksize=128, percdamp=0.01, groupsize=-1):
+        # TODO: make sure weight dim is correct for quantizer
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
@@ -110,7 +121,9 @@ class GPTQ:
                 # q = quantize(
                 #     w.unsqueeze(1), self.quantizer.scale, self.quantizer.zero, self.quantizer.maxq
                 # ).flatten()
-                q = self.quantizer.quantize(w.unsqueeze(1)).flatten()  # TODO: verify refactor
+                q = self.quantizer.quantize(
+                    w.unsqueeze(1)
+                ).flatten()  # TODO: verify refactor
                 Q1[:, i] = q
                 Losses1[:, i] = (w - q) ** 2 / d**2
 
