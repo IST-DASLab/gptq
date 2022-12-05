@@ -105,16 +105,13 @@ def opt_sequential(
         gptq = {}  # dictionary to hold gptq objects
         for name in subset:
             gptq[name] = GPTQ(subset[name])  # GPTQ object with a layer
-            gptq[
-                name
-            ].quantizer = (
-                quantizer_cls()
-            )  # attache a quantizer; why not pass in with GPTQ constructor?
+            gptq[name].quantizer = quantizer_cls()
+            # attache a quantizer; why not pass in with GPTQ constructor?
             gptq[name].quantizer.configure(
                 wbits, perchannel=True, sym=False, mse=False
             )  # why not specify as args to Quantizer constructor?
 
-        ### 
+        ###
         def add_batch(name):
             def tmp(_, inp, out):
                 gptq[name].add_batch(inp[0].data, out.data)
@@ -128,7 +125,7 @@ def opt_sequential(
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
         for h in handles:
             h.remove()
-        ### 
+        ###
 
         for name in subset:
             if DEBUG:
