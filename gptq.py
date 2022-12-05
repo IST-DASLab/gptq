@@ -70,6 +70,9 @@ class GPTQ:
 
     def fasterquant(self, blocksize=128, percdamp=0.01, groupsize=-1):
         # TODO: make sure weight dim is correct for quantizer
+        if isinstance(self.quantizer, DMXQuantizer):
+            assert blocksize % self.quantizer.block_size == 0
+
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
@@ -113,20 +116,26 @@ class GPTQ:
                 w = W1[:, i]
                 d = Hinv1[i, i]
 
-                if groupsize != -1:
-                    if (i1 + i) % groupsize == 0:
-                        self.quantizer.find_params(
-                            W[:, (i1 + i) : (i1 + i + groupsize)], weight=True
-                        )
-                # q = quantize(
-                #     w.unsqueeze(1), self.quantizer.scale, self.quantizer.zero, self.quantizer.maxq
-                # ).flatten()
-                q = self.quantizer.quantize(
-                    w.unsqueeze(1)
-                ).flatten()  # TODO: verify refactor
-                Q1[:, i] = q
-                Losses1[:, i] = (w - q) ** 2 / d**2
+                if isinstance(self.quantizer, DMXQuantizer):
+                    _w = W1[:, : i + 1]
+                    _q = self.quantizer.quantize(_w)
+                    Q1[:, : i + 1] = _q
+                    q = _q[:, -1]
 
+                    # Losses1[:, : i + 1] = (_w - _q) ** 2 / d**2
+                    # err1 = (_w - _q) / d
+                    # W1[:, i:] -= err1.matmul(Hinv1[:i+1, i:])
+                    # Err1[:, : i + 1] = err1
+                else:
+                    if groupsize != -1:
+                        if (i1 + i) % groupsize == 0:
+                            self.quantizer.find_params(
+                                W[:, (i1 + i) : (i1 + i + groupsize)], weight=True
+                            )
+                    q = self.quantizer.quantize(w.unsqueeze(1)).flatten()
+                    Q1[:, i] = q
+
+                Losses1[:, i] = (w - q) ** 2 / d**2
                 err1 = (w - q) / d
                 W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1

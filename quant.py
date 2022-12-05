@@ -15,6 +15,7 @@ class INTQuantizer(nn.Module):
         self.register_buffer("maxq", torch.tensor(0))
         self.register_buffer("scale", torch.zeros(shape))
         self.register_buffer("zero", torch.zeros(shape))
+        self.block_size = 1
 
     def configure(
         self,
@@ -155,6 +156,7 @@ class DMXQuantizer(nn.Module):
                 f"unsupported precision {bits} for d-Matrix numerical format {self.fmt}"
             )
         self.cast_to = corsair.CastTo(format=self.format)
+        self.block_size = self.format.block_size
 
     def find_params(self, *args, **kwargs):
         # all dummy values below, not used
@@ -164,11 +166,11 @@ class DMXQuantizer(nn.Module):
 
     def quantize(self, x):
         if self.ready:
-            if x.shape[-1] == 1:
-                # NOTE: ugly fix due to GPTQ's unsqueeze() before quantize() call
-                return self.cast_to(x.squeeze(-1).float()).unsqueeze(-1)
-            else:
-                return self.cast_to(x.float())
+            # if x.shape[-1] == 1:
+            #     # NOTE: ugly fix due to GPTQ's unsqueeze() before quantize() call
+            #     return self.cast_to(x.squeeze(-1).float()).unsqueeze(-1)
+            # else:
+            return self.cast_to(x.float())
         return x
 
     def enabled(self):
