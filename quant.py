@@ -127,16 +127,21 @@ class INTQuantizer(nn.Module):
 
 
 class DMXQuantizer(nn.Module):
-    def __init__(self, shape=1, fmt="bfp", sebias=7, *args, **kwargs) -> None:
+    def __init__(
+        self, shape=1, fmt="bfp", block_size=128, sebias=7, *args, **kwargs
+    ) -> None:
         super().__init__()
         self.fmt = fmt
+        self.block_size = block_size
         self.sebias = sebias
 
     def configure(self, bits, *args, **kwargs):
-        if self.fmt == "bfp" and bits == 4:
-            self.format = corsair.format.BFP12_128_LD
-        elif self.fmt == "bfp" and bits == 8:
-            self.format = corsair.format.BFP16_64_LD
+        if self.fmt == "bfp":
+            self.format = numerical.BlockFloatingPoint(
+                precision=bits,
+                block_size=self.block_size,
+                block_dim=-1,
+            )
         elif self.fmt == "sbfp" and bits == 4:
             self.format = numerical.ScaledBlockFloatingPoint(
                 block_format=numerical.Format.from_shorthand("XP[4,0](CSN)"),
@@ -156,7 +161,6 @@ class DMXQuantizer(nn.Module):
                 f"unsupported precision {bits} for d-Matrix numerical format {self.fmt}"
             )
         self.cast_to = corsair.CastTo(format=self.format)
-        self.block_size = self.format.block_size
 
     def find_params(self, *args, **kwargs):
         # all dummy values below, not used
