@@ -112,21 +112,14 @@ class GPTQ:
             Losses1 = torch.zeros_like(W1)
             Hinv1 = Hinv[i1:i2, i1:i2]
 
-            for i in range(count):
-                w = W1[:, i]
-                d = Hinv1[i, i]
+            if isinstance(self.quantizer, DMXQuantizer):
+                Q1 = self.quantizer.quantize(W1)
+                Err1 = (W1 - Q1).matmul(torch.linalg.inv(Hinv1))
+            else:
+                for i in range(count):
+                    w = W1[:, i]
+                    d = Hinv1[i, i]
 
-                if isinstance(self.quantizer, DMXQuantizer):
-                    _w = W1[:, : i + 1]
-                    _q = self.quantizer.quantize(_w)
-                    Q1[:, : i + 1] = _q
-                    q = _q[:, -1]
-
-                    # Losses1[:, : i + 1] = (_w - _q) ** 2 / d**2
-                    # err1 = (_w - _q) / d
-                    # W1[:, i:] -= err1.matmul(Hinv1[:i+1, i:])
-                    # Err1[:, : i + 1] = err1
-                else:
                     if groupsize != -1:
                         if (i1 + i) % groupsize == 0:
                             self.quantizer.find_params(
@@ -135,10 +128,10 @@ class GPTQ:
                     q = self.quantizer.quantize(w.unsqueeze(1)).flatten()
                     Q1[:, i] = q
 
-                Losses1[:, i] = (w - q) ** 2 / d**2
-                err1 = (w - q) / d
-                W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
-                Err1[:, i] = err1
+                    Losses1[:, i] = (w - q) ** 2 / d**2
+                    err1 = (w - q) / d
+                    W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                    Err1[:, i] = err1
 
             Q[:, i1:i2] = Q1
             Losses[:, i1:i2] = Losses1 / 2
