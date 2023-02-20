@@ -66,9 +66,9 @@ CUDA_VISIBLE_DEVICES=0 python test_kernel.py
 # OPT175B denotes the name of the folder with the HuggingFace OPT-175b checkpoint (see above)
 
 # Save compressed model
-CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --wbits 3 --save opt66-3bit.pt
+CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --wbits 3 --save opt175-3bit.pt
 # Benchmark generating a 128 token sequence with the saved model
-CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --load opt66-3bit.pt --benchmark 128
+CUDA_VISIBLE_DEVICES=0 python opt.py OPT175B c4 --load opt175b-3bit.pt --benchmark 128
 # Benchmark FP16 baseline, note that the model will be split across all listed GPUs
 CUDA_VISIBLE_DEVICES=0,1,2,3,4 python opt.py OPT175B c4 --benchmark 128
 ```
