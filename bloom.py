@@ -78,7 +78,7 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
             gptq[name] = GPTQ(subset[name])
             gptq[name].quantizer = Quantizer()
             gptq[name].quantizer.configure(
-                args.wbits, perchannel=True, sym=False, mse=False
+                args.wbits, perchannel=True, sym=args.sym, mse=False
             )
 
         def add_batch(name):
@@ -166,7 +166,7 @@ def bloom_eval(model, testenc, dev):
             for name in subset:
                 quantizer = Quantizer()
                 quantizer.configure(
-                    args.wbits, perchannel=True, sym=False, mse=False
+                    args.wbits, perchannel=True, sym=args.sym, mse=False
                 )
                 W = subset[name].weight.data
                 quantizer.find_params(W, weight=True)
@@ -242,6 +242,14 @@ if __name__ == '__main__':
         '--groupsize', type=int, default=-1,
         help='Groupsize to use for quantization; default uses full row.'
     )
+    parser.add_argument(
+        '--sym', action='store_true',
+        help='Whether to perform symmetric quantization.'
+    )
+    parser.add_argument(
+        '--new-eval', action='store_true',
+        help='Whether to use the new PTB and C4 eval'
+    )
 
 
     args = parser.parse_args()
@@ -258,7 +266,10 @@ if __name__ == '__main__':
         bloom_sequential(model, dataloader, DEV)
         print(time.time() - tick)
 
-    for dataset in ['wikitext2', 'ptb', 'c4']:
+    datasets = ['wikitext2', 'ptb', 'c4'] 
+    if args.new_eval:
+      datasets = ['wikitext2', 'ptb-new', 'c4-new']
+    for dataset in datasets: 
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )
