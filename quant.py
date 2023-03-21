@@ -136,7 +136,7 @@ except:
 # Assumes layer is perfectly divisible into 1024 * 1024 blocks
 class Quant3Linear(nn.Module): 
 
-    def __init__(self, infeatures, outfeatures):
+    def __init__(self, infeatures, outfeatures, faster=False):
         super().__init__()
         self.register_buffer('zeros', torch.zeros((outfeatures, 1)))
         self.register_buffer('scales', torch.zeros((outfeatures, 1)))
@@ -144,6 +144,7 @@ class Quant3Linear(nn.Module):
         self.register_buffer(
             'qweight', torch.zeros((infeatures // 32 * 3, outfeatures), dtype=torch.int)
         )
+        self.faster = faster
 
     def pack(self, linear, scales, zeros):
         self.zeros = zeros * scales
@@ -187,13 +188,17 @@ class Quant3Linear(nn.Module):
             y = self.bias.clone()
             outshape[-1] = self.bias.numel()
             dtype = x.dtype
-            x = x.float()
-            quant_cuda.vecquant3matmul(x, self.qweight, y, self.scales, self.zeros)
+            if self.faster:
+                x = x.half()
+                quant_cuda.vecquant3matmul_faster(x, self.qweight, y, self.scales, self.zeros)
+            else:
+                x = x.float()
+                quant_cuda.vecquant3matmul(x, self.qweight, y, self.scales, self.zeros)
             y = y.to(dtype)
             return y.reshape(outshape)
         raise ValueError('Only supports a single token currently.')
 
-def make_quant3(module, names, name=''):
+def make_quant3(module, names, name='', faster=False):
     if isinstance(module, Quant3Linear):
         return
     for attr in dir(module):
@@ -201,7 +206,7 @@ def make_quant3(module, names, name=''):
         name1 = name + '.' + attr if name != '' else attr
         if name1 in names:
             setattr(
-                module, attr, Quant3Linear(tmp.in_features, tmp.out_features)
+                module, attr, Quant3Linear(tmp.in_features, tmp.out_features, faster=faster)
             )
     for name1, child in module.named_children():
-        make_quant3(child, names, name + '.' + name1 if name != '' else name1)
+        make_quant3(child, names, name + '.' + name1 if name != '' else name1, faster=faster)

@@ -229,7 +229,7 @@ def opt_eval(model, testenc, dev):
 def opt_pack3(model, quantizers):
     layers = find_layers(model)
     layers = {n: layers[n] for n in quantizers}
-    make_quant3(model, quantizers)
+    make_quant3(model, quantizers, faster=args.faster_kernel)
     qlayers = find_layers(model, [Quant3Linear])
     print('Packing ...')
     for name in qlayers:
@@ -258,7 +258,7 @@ def load_quant3(model, checkpoint):
     for name in ['model.decoder.project_out', 'model.decoder.project_in', 'lm_head']:
         if name in layers:
             del layers[name]
-    make_quant3(model, layers)
+    make_quant3(model, layers, faster=args.faster_kernel)
 
     print('Loading model ...')
     model.load_state_dict(torch.load(checkpoint))
@@ -416,7 +416,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--new-eval', action='store_true',
-        help='Whether to use the new PTB and C4 eval'
+        help='Whether to use the new PTB and C4 eval.'
+    )
+    parser.add_argument(
+        '--faster-kernel', action='store_true',
+        help='Whether to use the new faster kernel for benchmarking.'
     )
 
     args = parser.parse_args()

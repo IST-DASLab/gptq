@@ -10,8 +10,8 @@ print('Benchmarking OPT-175B FC2 matvec ...')
 
 DEV = torch.device('cuda:0')
 
-M = 12288
-N = 12288 * 4
+M = 12288 * 4
+N = 12288
 
 DTYPE = torch.half
 mat = torch.randn((M, N), device=DEV, dtype=DTYPE)
@@ -43,6 +43,14 @@ for _ in range(COUNT):
     torch.cuda.synchronize()
 print('3bit:', (time.time() - tick) / COUNT)
 
+COUNT = 1000
+import time
+tick = time.time()
+for _ in range(COUNT):
+    quant_cuda.vecquant3matmul_faster(vec, mat, mul, scales, zeros)
+    torch.cuda.synchronize()
+print('3bit:', (time.time() - tick) / COUNT, '(faster)')
+
 print('Verifiying kernel correctness ...')
 
 M = 4 * 4096
@@ -66,5 +74,7 @@ qlayer = qlayer.to(DEV)
 layer = layer.to(DEV)
 
 with torch.no_grad():
-    print('Simu:', qlayer(vec))
-    print('Kern:', layer.to(DEV)(vec))
+    print('Simu:', layer.to(DEV)(vec))
+    print('Kern:', qlayer(vec))
+    qlayer.faster = True
+    print('Kern:', qlayer(vec.half()), '(faster)')
