@@ -12,7 +12,7 @@ The current release includes the following features:
 
 ## New Features
 
-Together with the camera ready version of the paper, we have added several updates to this repository:
+Together with the camera ready version of the paper we have added several updates to this repository:
 
 * Slightly adjusted preprocessing of C4 and PTB for more realistic evaluations (used in our updated results); can be activated via the flag `--new-eval`.
 * Optimized 3bit kernels, which are considerably faster especially on the A100, e.g. 1.9x -> 3.25x generation speedup for OPT-175B; can be activated via `--faster-kernel`.
