@@ -74,6 +74,11 @@ class GPTQ:
 
         H = self.H
         del self.H
+        # 这三行代码是fasterquant函数中的一部分，它们用于计算和处理死亡权重（即权重为零的权重）。
+        # 第一行代码dead = torch.diag(H) == 0计算出H矩阵的对角线元素是否为零。如果对角线元素为零，则表示该列（或行）的权重为零，即死亡权重。
+        # 第二行代码H[dead, dead] = 1将H矩阵中死亡权重对应的对角线元素设置为1。这样做是为了避免在后面的计算中出现除以零的情况,以改善矩阵的可逆性
+        # 第三行代码W[:, dead] = 0将权重矩阵中死亡权重对应的列设置为零。这样做是为了在后面的计算中忽略死亡权重。
+        # 这三行代码是fasterquant函数中处理死亡权重的关键部分，这样可以过滤掉W矩阵与H矩阵非奇异(non-singular)部分无关的元素,从而改善后续矩阵运算的稳定性。
         dead = torch.diag(H) == 0
         H[dead, dead] = 1
         W[:, dead] = 0
@@ -85,15 +90,26 @@ class GPTQ:
 
         Losses = torch.zeros_like(W)
         Q = torch.zeros_like(W)
-
+        # 这段代码的作用是计算一个阻尼系数damp，然后将矩阵H的对角线上的元素加上damp。
+        # 其中，percdamp是一个标量，表示阻尼系数的比例。
+        # torch.mean(torch.diag(H))计算了矩阵H的对角线上的元素的平均值，即H的迹。diag是一个一维张量，包含了从0到self.columns-1的整数，用于选择矩阵H的对角线上的元素。
+        # 最后，H[diag, diag] += damp将阻尼系数加到了矩阵H的对角线上的元素上 。
+        # 通过在矩阵H的对角线上增加阻尼项来改善矩阵的条件,以方便后续的求逆运算。
         damp = percdamp * torch.mean(torch.diag(H))
         diag = torch.arange(self.columns, device=self.dev)
         H[diag, diag] += damp
+        # 首先，函数使用torch.linalg.cholesky(H)对H矩阵进行Cholesky分解，将其分解为一个下三角矩阵。
+        # 然后，函数使用torch.cholesky_inverse(H)计算H矩阵的逆。这一步是通过使用Cholesky分解的逆来计算H矩阵的逆实现的。
+        # 接下来，函数再次使用torch.linalg.cholesky(H, upper=True)对H矩阵进行Cholesky分解，但这次将其分解为一个上三角矩阵。
+        # 最后，函数将计算出的H矩阵的逆赋值给Hinv变量，以便在后面的计算中使用。
         H = torch.linalg.cholesky(H)
         H = torch.cholesky_inverse(H)
         H = torch.linalg.cholesky(H, upper=True)
         Hinv = H
-
+        
+        # 函数首先使用for i1 in range(0, self.columns, blocksize):循环按块处理权重矩阵。每次循环迭代时，它会计算出当前块的起始和结束位置（i1和i2），以及当前块的大小（count）。
+        # 然后，函数使用W1 = W[:, i1:i2].clone()获取当前块的权重，并创建几个与当前块大小相同的零矩阵（Q1，Err1和Losses1）。这些矩阵将在后面的计算中用于存储量化后的权重、误差和损失。
+        # 接下来，函数使用Hinv1 = Hinv[i1:i2, i1:i2]获取H矩阵逆的当前块对应的部分。这个子矩阵将在后面的计算中用于更新权重矩阵中未被量化的部分。
         for i1 in range(0, self.columns, blocksize):
             i2 = min(i1 + blocksize, self.columns)
             count = i2 - i1
@@ -103,7 +119,11 @@ class GPTQ:
             Err1 = torch.zeros_like(W1)
             Losses1 = torch.zeros_like(W1)
             Hinv1 = Hinv[i1:i2, i1:i2]
-
+            
+            # 函数首先使用for i in range(count):循环遍历当前块内的每一列权重。每次循环迭代时，它会获取当前列的权重（w）和H矩阵逆的对应元素（d）。
+            # 然后，如果指定了组大小（即groupsize != -1），则函数会在每个组的开头调用find_params函数来重新计算量化参数。
+            # 接下来，函数使用quantize函数对当前列的权重进行量化，并将量化后的权重存储在Q1矩阵中。然后，它计算量化误差并将其存储在Losses1矩阵中。
+            # 最后，函数使用量化误差和H矩阵逆来更新权重矩阵中未被量化的部分。这样做是为了减少量化误差，并提高量化后模型的准确性。
             for i in range(count):
                 w = W1[:, i]
                 d = Hinv1[i, i]
@@ -121,7 +141,9 @@ class GPTQ:
                 err1 = (w - q) / d
                 W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1
-
+            
+            # 在对当前块内的权重进行量化后，函数首先使用Q[:, i1:i2] = Q1和Losses[:, i1:i2] = Losses1 / 2更新量化后的权重矩阵和损失矩阵。
+            # 然后，函数使用W[:, i2:] -= Err1.matmul(Hinv[i1:i2, i2:])更新权重矩阵中未被量化的部分。这样做是为了减少量化误差，并提高量化后模型的准确性。
             Q[:, i1:i2] = Q1
             Losses[:, i1:i2] = Losses1 / 2
 
