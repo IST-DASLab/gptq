@@ -221,6 +221,19 @@ def llama_eval(model, testenc, dev):
 
     model.config.use_cache = use_cache
 
+def llama_pack3(model, quantizers):
+    layers = find_layers(model)
+    layers = {n: layers[n] for n in quantizers}
+    make_quant3(model, quantizers)
+    qlayers = find_layers(model, [Quant3Linear])
+    print('Packing ...')
+    for name in qlayers:
+        print(name)
+        quantizers[name] = quantizers[name].cpu()
+        qlayers[name].pack(layers[name], quantizers[name].scale, quantizers[name].zero)
+    print('Done.')
+    return model
+
 
 if __name__ == '__main__':
     import argparse
@@ -265,6 +278,10 @@ if __name__ == '__main__':
         help='Whether to perform symmetric quantization.'
     )
     parser.add_argument(
+        '--save', type=str, default='',
+        help='Save quantized checkpoint under this name.'
+    )
+    parser.add_argument(
         '--new-eval', action='store_true',
         help='Whether to use the new PTB and C4 eval.'
     )
@@ -293,10 +310,15 @@ if __name__ == '__main__':
 
     datasets = ['wikitext2', 'ptb', 'c4'] 
     if args.new_eval:
-      datasets = ['wikitext2', 'ptb-new', 'c4-new']
+        datasets = ['wikitext2', 'ptb-new', 'c4-new']
     for dataset in datasets:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )
         print(dataset)
         llama_eval(model, testloader, DEV)
+
+    if args.save:
+        llama_pack3(model, quantizers)
+        torch.save(model.state_dict(), args.save)
+
