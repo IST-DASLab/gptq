@@ -58,7 +58,7 @@ class GPTQ:
         self.H += inp.matmul(inp.t())
 
     def fasterquant(
-        self, blocksize=128, percdamp=.01, groupsize=-1, actorder=False
+        self, blocksize=128, percdamp=.01, groupsize=-1, actorder=False, static_groups=False
     ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
@@ -78,10 +78,19 @@ class GPTQ:
         H[dead, dead] = 1
         W[:, dead] = 0
 
+        if static_groups:
+            import copy
+            groups = []
+            for i in range(0, self.columns, groupsize):
+                quantizer = copy.deepcopy(self.quantizer)
+                quantizer.find_params(W[:, i:(i + groupsize)], weight=True)
+                groups.append(quantizer)
+
         if actorder:
             perm = torch.argsort(torch.diag(H), descending=True)
             W = W[:, perm]
             H = H[perm][:, perm]
+            invperm = torch.argsort(perm)
 
         Losses = torch.zeros_like(W)
         Q = torch.zeros_like(W)
@@ -109,8 +118,14 @@ class GPTQ:
                 d = Hinv1[i, i]
 
                 if groupsize != -1:
-                    if (i1 + i) % groupsize == 0:
-                        self.quantizer.find_params(W[:, (i1 + i):(i1 + i + groupsize)], weight=True)
+                    if not static_groups:
+                        if (i1 + i) % groupsize == 0:
+                            self.quantizer.find_params(W[:, (i1 + i):(i1 + i + groupsize)], weight=True)
+                    else:
+                        idx = i1 + i
+                        if actorder:
+                            idx = perm[idx]
+                        self.quantizer = groups[idx // groupsize]
 
                 q = quantize(
                     w.unsqueeze(1), self.quantizer.scale, self.quantizer.zero, self.quantizer.maxq
@@ -138,7 +153,6 @@ class GPTQ:
         print('error', torch.sum(Losses).item())
 
         if actorder:
-            invperm = torch.argsort(perm)
             Q = Q[:, invperm]
 
         if isinstance(self.layer, transformers.Conv1D):

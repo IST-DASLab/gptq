@@ -108,7 +108,9 @@ def llama_sequential(model, dataloader, dev):
             for name in subset:
                 print(i, name)
                 print('Quantizing ...')
-                gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order)
+                gptq[name].fasterquant(
+                    percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups
+                )
                 quantizers['model.layers.%d.%s' % (i, name)] = gptq[name].quantizer
                 gptq[name].free()
 
@@ -292,6 +294,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--true-sequential', action='store_true',
         help='Whether to run in true sequential model.'
+    )
+    parser.add_argument(
+        '--static-groups', action='store_true',
+        help='Whether to use static groups; recommended when using `--actorder` for more efficient inference.'
     )
 
     args = parser.parse_args()

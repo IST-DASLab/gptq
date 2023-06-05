@@ -101,7 +101,9 @@ def opt_sequential(model, dataloader, dev):
         for name in subset:
             print(i, name)
             print('Quantizing ...')
-            gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order)
+            gptq[name].fasterquant(
+                percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups
+            )
             quantizers['model.decoder.layers.%d.%s' % (i, name)] = gptq[name].quantizer
             gptq[name].free()
         for j in range(args.nsamples):
@@ -425,6 +427,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--act-order', action='store_true',
         help='Whether to apply the activation order GPTQ heuristic'
+    )
+    parser.add_argument(
+        '--static-groups', action='store_true',
+        help='Whether to use static groups; recommended when using `--actorder` for more efficient inference.'
     )
 
     args = parser.parse_args()
