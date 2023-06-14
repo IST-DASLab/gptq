@@ -334,7 +334,7 @@ def benchmark(model, input_ids, check=False):
         for i in range(input_ids.numel()):
             tick = time.time()
             out = model(
-                input_ids[:, i].reshape(-1),
+                input_ids[:, i].reshape((1,-1)),
                 past_key_values=cache['past'],
                 attention_mask=attention_mask[:, :(i + 1)].reshape((1, -1))
             )
