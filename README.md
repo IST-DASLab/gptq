@@ -54,7 +54,7 @@ CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4
 # Run RTN baseline and compute results
 CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 --nearest
 # Run GPTQ and compute results
-CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 [--groupsize 1024]
+CUDA_VISIBLE_DEVICES=0 python opt.py facebook/opt-125m c4 --wbits 4 --groupsize 1024
 ````
 
 To run other OPT models replace `opt-125m` with one of: `opt-350m`, `opt-1.3b`, `opt-2.7b`, `opt-6.7b`, `opt-13b`, `opt-66b`.
@@ -69,7 +69,7 @@ CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4
 # Run RTN baseline and compute results
 CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 --nearest
 # Run GPTQ and compute results
-CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 [--groupsize 1024]
+CUDA_VISIBLE_DEVICES=0 python bloom.py bigscience/bloom-560m c4 --wbits 4 --groupsize 1024
 ````
 
 To run other BLOOM models replace `bloom-560m` with one of: `bloom-1b1`, `bloom-1b7`, `bloom-3b`, `bloom-7b1`, `bloom`.
