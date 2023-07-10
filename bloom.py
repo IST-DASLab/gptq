@@ -69,6 +69,7 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
 
     print('Ready.')
 
+    quantizers = {}
     for i in range(len(layers)):
         layer = layers[i].to(dev)
 
@@ -97,6 +98,7 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
             print(i, name)
             print('Quantizing ...')
             gptq[name].fasterquant(percdamp=args.percdamp, groupsize=args.groupsize)
+            quantizers['transformer.h.%d.%s' % (i, name)] = gptq[name].quantizer
         for j in range(args.nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, alibi=alibi)[0]
 
@@ -107,6 +109,8 @@ def bloom_sequential(model, dataloader, dev, means=None, stds=None):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
+
+    return quantizers
 
 @torch.no_grad()
 def bloom_eval(model, testenc, dev):
@@ -204,6 +208,20 @@ def bloom_eval(model, testenc, dev):
     model.config.use_cache = use_cache
 
 
+def bloom_pack3(model, quantizers):
+    layers = find_layers(model)
+    layers = {n: layers[n] for n in quantizers}
+    make_quant3(model, quantizers)
+    qlayers = find_layers(model, [Quant3Linear])
+    print('Packing ...')
+    for name in qlayers:
+        print(name)
+        quantizers[name] = quantizers[name].cpu()
+        qlayers[name].pack(layers[name], quantizers[name].scale, quantizers[name].zero)
+    print('Done.')
+    return model
+
+
 if __name__ == '__main__':
     import argparse
     from datautils import *
@@ -247,6 +265,10 @@ if __name__ == '__main__':
         help='Whether to perform symmetric quantization.'
     )
     parser.add_argument(
+        '--save', type=str, default='',
+        help='Save quantized checkpoint under this name.'
+    )
+    parser.add_argument(
         '--new-eval', action='store_true',
         help='Whether to use the new PTB and C4 eval'
     )
@@ -263,15 +285,19 @@ if __name__ == '__main__':
 
     if args.wbits < 16 and not args.nearest:
         tick = time.time()
-        bloom_sequential(model, dataloader, DEV)
+        quantizers = bloom_sequential(model, dataloader, DEV)
         print(time.time() - tick)
 
     datasets = ['wikitext2', 'ptb', 'c4'] 
     if args.new_eval:
-      datasets = ['wikitext2', 'ptb-new', 'c4-new']
+        datasets = ['wikitext2', 'ptb-new', 'c4-new']
     for dataset in datasets: 
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
         )
         print(dataset)
         bloom_eval(model, testloader, DEV)
+
+    if args.save:
+        bloom_pack3(model, quantizers)
+        torch.save(model.state_dict(), args.save)
