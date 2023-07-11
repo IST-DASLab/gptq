@@ -12,6 +12,10 @@ The current release includes the following features:
 
 ## New Features
 
+Update July 2023:
+
+* Added `--static-groups` options which determines all group-grids in advance rather than dynamically during quantization, which has the effect that `--act-order` does not require any inference changes (that may cause slowdown) when used together with this option.
+
 Together with the camera ready version of the paper we have added several updates to this repository:
 
 * Slightly adjusted preprocessing of C4 and PTB for more realistic evaluations (used in our updated results); can be activated via the flag `--new-eval`.
