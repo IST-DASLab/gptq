@@ -102,7 +102,8 @@ def opt_sequential(model, dataloader, dev):
             print(i, name)
             print('Quantizing ...')
             gptq[name].fasterquant(
-                percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups
+                percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups, 
+                dct_mode=args.dct_mode
             )
             quantizers['model.decoder.layers.%d.%s' % (i, name)] = gptq[name].quantizer
             gptq[name].free()
@@ -431,6 +432,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--static-groups', action='store_true',
         help='Whether to use static groups; recommended when using `--actorder` for more efficient inference.'
+    )
+    parser.add_argument(
+        '--dct_mode',
+        type=int, default=0, help='mode for quantization through dct compression. 0 for no DCT.'
     )
 
     args = parser.parse_args()
